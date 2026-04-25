@@ -13,8 +13,10 @@
         <div class="viewer-container" id="viewerContainer">
             <video id="videoElement" autoplay playsinline style="display: none;"></video>
             <img id="imageElement" style="display: none;" crossorigin="anonymous">
+            <img id="imgFrameGold" src="assets/gold_frame.png" style="display: none;" crossorigin="anonymous">
             <!-- Canvas where we render the image/video and the draggable frame overlay -->
             <canvas id="mainCanvas"></canvas>
+            <canvas id="hiddenCanvas" style="display: none;"></canvas>
             
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="spinner"></div>
@@ -39,10 +41,11 @@
             <div class="frame-selector">
                 <span class="label">Style:</span>
                 <select id="frameStyleSelect">
-                    <option value="gold">Classic Gold</option>
-                    <option value="wood">Dark Wood</option>
-                    <option value="modern">Modern Black</option>
-                    <option value="neon">Neon Cyber</option>
+                    <option value="gold_real">Real Elaborate Gold</option>
+                    <option value="gold">Classic Gold (Line)</option>
+                    <option value="wood">Dark Wood (Line)</option>
+                    <option value="modern">Modern Black (Line)</option>
+                    <option value="neon">Neon Cyber (Line)</option>
                 </select>
             </div>
             

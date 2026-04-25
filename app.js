@@ -14,7 +14,9 @@ const btnModeAI = document.getElementById('btnModeAI');
 const frameStyleSelect = document.getElementById('frameStyleSelect');
 const instructionText = document.getElementById('instructionText');
 
-let currentFrameStyle = 'gold';
+let currentFrameStyle = 'gold_real';
+
+const imgFrameGold = document.getElementById('imgFrameGold');
 
 let currentSource = null; // 'video' or 'image'
 let isStreaming = false;
@@ -148,6 +150,11 @@ function drawFrame() {
 }
 
 function drawPaintingFrame(corners) {
+    if (currentFrameStyle === 'gold_real' && cvReady) {
+        drawWarpedImage(imgFrameGold, corners);
+        return;
+    }
+
     ctx.save();
     
     ctx.beginPath();
@@ -202,6 +209,38 @@ function drawPaintingFrame(corners) {
     }
     
     ctx.restore();
+}
+
+function drawWarpedImage(imgElement, dstCorners) {
+    if (!imgElement.complete || imgElement.naturalWidth === 0) return;
+
+    let src = cv.imread(imgElement);
+    
+    let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        0, 0,
+        imgElement.width, 0,
+        imgElement.width, imgElement.height,
+        0, imgElement.height
+    ]);
+    
+    let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        dstCorners[0].x, dstCorners[0].y,
+        dstCorners[1].x, dstCorners[1].y,
+        dstCorners[2].x, dstCorners[2].y,
+        dstCorners[3].x, dstCorners[3].y
+    ]);
+
+    let M = cv.getPerspectiveTransform(srcTri, dstTri);
+    let dst = new cv.Mat();
+    let dsize = new cv.Size(canvas.width, canvas.height);
+    
+    // Warp perspective with transparent background (Scalar 0,0,0,0)
+    cv.warpPerspective(src, dst, M, dsize, cv.INTER_LINEAR, cv.BORDER_CONSTANT, new cv.Scalar(0, 0, 0, 0));
+    
+    cv.imshow('hiddenCanvas', dst);
+    ctx.drawImage(document.getElementById('hiddenCanvas'), 0, 0);
+
+    src.delete(); dst.delete(); M.delete(); srcTri.delete(); dstTri.delete();
 }
 
 function drawHandles(corners) {
