@@ -11,7 +11,10 @@ const btnCamera = document.getElementById('btnCamera');
 const imageUpload = document.getElementById('imageUpload');
 const btnModeManual = document.getElementById('btnModeManual');
 const btnModeAI = document.getElementById('btnModeAI');
+const frameStyleSelect = document.getElementById('frameStyleSelect');
 const instructionText = document.getElementById('instructionText');
+
+let currentFrameStyle = 'gold';
 
 let currentSource = null; // 'video' or 'image'
 let isStreaming = false;
@@ -98,6 +101,11 @@ btnModeAI.addEventListener('click', () => {
     runAutoDetection();
 });
 
+frameStyleSelect.addEventListener('change', (e) => {
+    currentFrameStyle = e.target.value;
+    if (currentSource === 'image') drawFrame();
+});
+
 // --- Drawing Logic ---
 
 function resetCorners(w, h) {
@@ -142,7 +150,6 @@ function drawFrame() {
 function drawPaintingFrame(corners) {
     ctx.save();
     
-    // Draw thick stroke to simulate a frame
     ctx.beginPath();
     ctx.moveTo(corners[0].x, corners[0].y);
     ctx.lineTo(corners[1].x, corners[1].y);
@@ -150,19 +157,49 @@ function drawPaintingFrame(corners) {
     ctx.lineTo(corners[3].x, corners[3].y);
     ctx.closePath();
 
-    ctx.lineWidth = 15;
-    ctx.strokeStyle = '#d4af37'; // Gold color
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 15;
-    ctx.shadowOffsetX = 5;
-    ctx.shadowOffsetY = 5;
-    ctx.stroke();
+    if (currentFrameStyle === 'gold') {
+        ctx.lineWidth = 15;
+        ctx.strokeStyle = '#d4af37';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 15;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 5;
+        ctx.stroke();
 
-    // Inner highlight
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#fff';
-    ctx.shadowColor = 'transparent';
-    ctx.stroke();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
+        ctx.shadowColor = 'transparent';
+        ctx.stroke();
+    } else if (currentFrameStyle === 'wood') {
+        ctx.lineWidth = 25;
+        ctx.strokeStyle = '#3e2723';
+        ctx.shadowColor = 'rgba(0,0,0,0.6)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 8;
+        ctx.shadowOffsetY = 8;
+        ctx.stroke();
+
+        ctx.lineWidth = 15;
+        ctx.strokeStyle = '#4e342e';
+        ctx.stroke();
+    } else if (currentFrameStyle === 'modern') {
+        ctx.lineWidth = 20;
+        ctx.strokeStyle = '#111';
+        ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        ctx.shadowBlur = 5;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+        ctx.stroke();
+    } else if (currentFrameStyle === 'neon') {
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = '#fff';
+        ctx.shadowColor = '#f0f';
+        ctx.shadowBlur = 20;
+        ctx.stroke();
+        ctx.shadowColor = '#0ff';
+        ctx.shadowBlur = 10;
+        ctx.stroke();
+    }
     
     ctx.restore();
 }
