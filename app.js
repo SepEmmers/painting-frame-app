@@ -43,6 +43,10 @@ window.onOpenCvReady = function() {
     console.log('OpenCV.js is ready.');
 };
 
+if (window.cvIsReady) {
+    window.onOpenCvReady();
+}
+
 // --- Input Handling ---
 
 btnCamera.addEventListener('click', async () => {
