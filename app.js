@@ -35,17 +35,18 @@ let frameCorners = [
 let activeCornerIndex = -1;
 let isDragging = false;
 
-// Initialize OpenCV
-window.onOpenCvReady = function() {
-    cvReady = true;
-    loadingOverlay.style.display = 'none';
-    btnModeAI.disabled = false;
-    console.log('OpenCV.js is ready.');
-};
-
-if (window.cvIsReady) {
-    window.onOpenCvReady();
+// Initialize OpenCV with robust polling
+function waitForOpenCV() {
+    if (typeof cv !== 'undefined' && typeof cv.Mat !== 'undefined') {
+        cvReady = true;
+        loadingOverlay.style.display = 'none';
+        btnModeAI.disabled = false;
+        console.log('OpenCV.js is ready.');
+    } else {
+        setTimeout(waitForOpenCV, 200);
+    }
 }
+waitForOpenCV();
 
 // --- Input Handling ---
 
