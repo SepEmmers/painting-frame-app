@@ -368,7 +368,6 @@ function handlePointerDown(e) {
 
     if (mode !== 'manual') return;
     
-    const pos = getMousePos(e);
     const handleRadius = Math.max(15, canvas.width * 0.03); // Larger hit area
     
     activeCornerIndex = -1;
