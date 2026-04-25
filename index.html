@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painting Frame Overlay</title>
+    <link rel="stylesheet" href="style.css">
+    <script async src="https://docs.opencv.org/master/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Viewer Area -->
+        <div class="viewer-container" id="viewerContainer">
+            <video id="videoElement" autoplay playsinline style="display: none;"></video>
+            <img id="imageElement" style="display: none;" crossorigin="anonymous">
+            <!-- Canvas where we render the image/video and the draggable frame overlay -->
+            <canvas id="mainCanvas"></canvas>
+            
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+                <p>Loading OpenCV.js...</p>
+            </div>
+        </div>
+
+        <!-- Simple Controls -->
+        <div class="controls-panel">
+            <div class="control-group">
+                <button class="btn primary" id="btnCamera">Use Camera</button>
+                <label for="imageUpload" class="btn secondary">Upload Image</label>
+                <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+            </div>
+
+            <div class="control-group toggle-group">
+                <span class="label">Mode:</span>
+                <button class="btn toggle active" id="btnModeManual">Manual</button>
+                <button class="btn toggle" id="btnModeAI" disabled>AI Auto-fit</button>
+            </div>
+            
+            <p class="instruction-text" id="instructionText">Drag the corners to fit the frame to your object.</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
