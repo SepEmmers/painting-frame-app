@@ -5,7 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painting Frame Overlay</title>
     <link rel="stylesheet" href="style.css">
-    <script async src="https://docs.opencv.org/master/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
+    <script>
+        var Module = {
+            onRuntimeInitialized: function() {
+                if (window.onOpenCvReady) window.onOpenCvReady();
+            }
+        };
+    </script>
+    <script async src="https://docs.opencv.org/4.8.0/opencv.js" type="text/javascript"></script>
 </head>
 <body>
     <div class="app-container">
@@ -28,8 +35,9 @@
         <div class="controls-panel">
             <div class="control-group">
                 <button class="btn primary" id="btnCamera">Use Camera</button>
-                <label for="imageUpload" class="btn secondary">Upload Image</label>
+                <label for="imageUpload" class="btn secondary">Upload</label>
                 <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                <button class="btn secondary" id="btnCapture" style="background: #10b981; color: white;">📸 Capture</button>
             </div>
 
             <div class="control-group toggle-group">

@@ -12,6 +12,7 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 
 const btnCamera = document.getElementById('btnCamera');
 const imageUpload = document.getElementById('imageUpload');
+const btnCapture = document.getElementById('btnCapture');
 const btnModeManual = document.getElementById('btnModeManual');
 const btnModeAI = document.getElementById('btnModeAI');
 const frameStyleSelect = document.getElementById('frameStyleSelect');
@@ -85,6 +86,33 @@ imageUpload.addEventListener('change', (e) => {
         image.src = event.target.result;
     }
     reader.readAsDataURL(file);
+});
+
+btnCapture.addEventListener('click', () => {
+    if (!currentSource) {
+        alert("Please start the camera or upload an image first!");
+        return;
+    }
+    
+    // Temporarily hide handles before taking screenshot
+    const wasManual = (mode === 'manual');
+    if (wasManual) {
+        mode = 'capturing'; // temp state to skip drawing handles
+        drawFrame(); // redraw without handles
+    }
+    
+    // Get image and download
+    const dataURL = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = 'framed_picture.png';
+    link.href = dataURL;
+    link.click();
+    
+    // Restore mode
+    if (wasManual) {
+        mode = 'manual';
+        drawFrame();
+    }
 });
 
 // --- UI Toggles ---
