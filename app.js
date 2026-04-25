@@ -1,5 +1,8 @@
 let cvReady = false;
-let mode = 'manual'; // 'manual' or 'ai'
+let mode = 'manual'; // 'manual', 'ai_select', or 'ai_tracking'
+let detectedQuads = []; // Stores arrays of 4 corners
+let oldGray = null; // For optical flow
+let oldPoints = null; // For optical flow
 
 const video = document.getElementById('videoElement');
 const image = document.getElementById('imageElement');
@@ -96,10 +99,10 @@ btnModeManual.addEventListener('click', () => {
 
 btnModeAI.addEventListener('click', () => {
     if (!cvReady || !currentSource) return;
-    mode = 'ai';
+    mode = 'ai_select';
     btnModeAI.classList.add('active');
     btnModeManual.classList.remove('active');
-    instructionText.innerText = "AI Mode: Automatically detecting frame...";
+    instructionText.innerText = "Scanning... tap a highlighted box to track it.";
     runAutoDetection();
 });
 
@@ -122,6 +125,9 @@ function resetCorners(w, h) {
 
 function drawLoop() {
     if (currentSource === 'video' && isStreaming) {
+        if (mode === 'ai_tracking') {
+            updateOpticalFlow();
+        }
         drawFrame();
         requestAnimationFrame(drawLoop);
     }
@@ -140,13 +146,32 @@ function drawFrame() {
 
     // Draw Frame Overlay
     if (currentSource) {
-        drawPaintingFrame(frameCorners);
-        
-        // Draw corner handles if in manual mode
-        if (mode === 'manual') {
-            drawHandles(frameCorners);
+        if (mode === 'ai_select') {
+            drawDetectedQuads();
+        } else {
+            drawPaintingFrame(frameCorners);
+            if (mode === 'manual') {
+                drawHandles(frameCorners);
+            }
         }
     }
+}
+
+function drawDetectedQuads() {
+    ctx.fillStyle = 'rgba(99, 102, 241, 0.4)'; // Primary color with opacity
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 3;
+
+    detectedQuads.forEach(quad => {
+        ctx.beginPath();
+        ctx.moveTo(quad[0].x, quad[0].y);
+        ctx.lineTo(quad[1].x, quad[1].y);
+        ctx.lineTo(quad[2].x, quad[2].y);
+        ctx.lineTo(quad[3].x, quad[3].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    });
 }
 
 function drawPaintingFrame(corners) {
@@ -284,7 +309,31 @@ function getMousePos(evt) {
 }
 
 function handlePointerDown(e) {
-    if (mode !== 'manual' || !currentSource) return;
+    if (!currentSource) return;
+    const pos = getMousePos(e);
+
+    if (mode === 'ai_select') {
+        // Check if click is inside a detected quad (simple bounding box check or polygon test)
+        // A simple way is to use Canvas API isPointInPath
+        for (let i = 0; i < detectedQuads.length; i++) {
+            let quad = detectedQuads[i];
+            ctx.beginPath();
+            ctx.moveTo(quad[0].x, quad[0].y);
+            ctx.lineTo(quad[1].x, quad[1].y);
+            ctx.lineTo(quad[2].x, quad[2].y);
+            ctx.lineTo(quad[3].x, quad[3].y);
+            ctx.closePath();
+            
+            if (ctx.isPointInPath(pos.x, pos.y)) {
+                frameCorners = quad;
+                startTracking();
+                break;
+            }
+        }
+        return;
+    }
+
+    if (mode !== 'manual') return;
     
     const pos = getMousePos(e);
     const handleRadius = Math.max(15, canvas.width * 0.03); // Larger hit area
@@ -345,14 +394,9 @@ function runAutoDetection() {
 
     let dst = new cv.Mat();
     cv.cvtColor(src, src, cv.COLOR_RGBA2GRAY, 0);
-    
-    // Blur to reduce noise
     cv.GaussianBlur(src, dst, new cv.Size(5, 5), 0, 0, cv.BORDER_DEFAULT);
-    
-    // Canny edge detection
     cv.Canny(dst, dst, 50, 150, 3, false);
     
-    // Dilate to connect broken edges
     let M = cv.Mat.ones(3, 3, cv.CV_8U);
     cv.dilate(dst, dst, M, new cv.Point(-1, -1), 1, cv.BORDER_CONSTANT, cv.morphologyDefaultBorderValue());
 
@@ -360,55 +404,43 @@ function runAutoDetection() {
     let hierarchy = new cv.Mat();
     cv.findContours(dst, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-    let maxArea = 0;
-    let bestQuad = null;
+    detectedQuads = [];
 
     for (let i = 0; i < contours.size(); ++i) {
         let cnt = contours.get(i);
         let area = cv.contourArea(cnt);
-        if (area > 1000) { // minimum area threshold
+        if (area > 2000) { // minimum area threshold
             let approx = new cv.Mat();
             let peri = cv.arcLength(cnt, true);
             cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
             
-            // Look for a quadrilateral
-            if (approx.rows === 4 && area > maxArea) {
-                maxArea = area;
-                if (bestQuad) bestQuad.delete();
-                bestQuad = approx.clone();
+            if (approx.rows === 4) {
+                let points = [];
+                for (let j = 0; j < 4; j++) {
+                    points.push({
+                        x: approx.data32S[j * 2],
+                        y: approx.data32S[j * 2 + 1]
+                    });
+                }
+                
+                // Sort corners: top-left, top-right, bottom-right, bottom-left
+                points.sort((a, b) => (a.y - b.y));
+                let top = [points[0], points[1]].sort((a,b) => a.x - b.x);
+                let bottom = [points[2], points[3]].sort((a,b) => b.x - a.x);
+                
+                detectedQuads.push([top[0], top[1], bottom[0], bottom[1]]);
             }
             approx.delete();
         }
     }
 
-    if (bestQuad) {
-        // Extract corners and sort them to match top-left, top-right, bottom-right, bottom-left
-        let points = [];
-        for (let i = 0; i < 4; i++) {
-            points.push({
-                x: bestQuad.data32S[i * 2],
-                y: bestQuad.data32S[i * 2 + 1]
-            });
-        }
-        
-        // Sort corners (simple heuristic: top-left has min sum, bottom-right has max sum, etc.)
-        points.sort((a, b) => (a.y - b.y));
-        let top = [points[0], points[1]].sort((a,b) => a.x - b.x);
-        let bottom = [points[2], points[3]].sort((a,b) => b.x - a.x); // bottom right then bottom left
-        
-        frameCorners = [top[0], top[1], bottom[0], bottom[1]];
-        instructionText.innerText = "Frame detected! Adjust if needed.";
-        bestQuad.delete();
-        
-        // Switch back to manual mode to let them tweak
-        setTimeout(() => {
-            btnModeManual.click();
-        }, 1000);
+    if (detectedQuads.length > 0) {
+        instructionText.innerText = `Found ${detectedQuads.length} frame(s). Tap one to select.`;
     } else {
-        instructionText.innerText = "Could not detect frame. Try manual mode.";
+        instructionText.innerText = "No frames found. Try manual mode or adjust camera.";
         setTimeout(() => {
             btnModeManual.click();
-        }, 2000);
+        }, 3000);
     }
 
     src.delete();
@@ -418,4 +450,85 @@ function runAutoDetection() {
     hierarchy.delete();
     
     if (currentSource === 'image') drawFrame();
+}
+
+function startTracking() {
+    if (!cvReady || currentSource !== 'video') {
+        mode = 'manual';
+        btnModeManual.click();
+        return;
+    }
+    
+    mode = 'ai_tracking';
+    instructionText.innerText = "Tracking active! AR Mode.";
+    
+    if (oldGray) oldGray.delete();
+    if (oldPoints) oldPoints.delete();
+
+    let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+    let cap = new cv.VideoCapture(video);
+    cap.read(src);
+
+    oldGray = new cv.Mat();
+    cv.cvtColor(src, oldGray, cv.COLOR_RGBA2GRAY);
+
+    let pts = new Float32Array(8);
+    for (let i = 0; i < 4; i++) {
+        pts[i * 2] = frameCorners[i].x;
+        pts[i * 2 + 1] = frameCorners[i].y;
+    }
+    oldPoints = cv.matFromArray(4, 1, cv.CV_32FC2, pts);
+    src.delete();
+}
+
+function updateOpticalFlow() {
+    if (!cvReady || !oldGray || !oldPoints) return;
+
+    let src = new cv.Mat(video.videoHeight, video.videoWidth, cv.CV_8UC4);
+    let cap = new cv.VideoCapture(video);
+    cap.read(src);
+
+    let frameGray = new cv.Mat();
+    cv.cvtColor(src, frameGray, cv.COLOR_RGBA2GRAY);
+
+    let newPoints = new cv.Mat();
+    let status = new cv.Mat();
+    let err = new cv.Mat();
+    let winSize = new cv.Size(21, 21);
+    let maxLevel = 2;
+    let criteria = new cv.TermCriteria(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03);
+
+    cv.calcOpticalFlowPyrLK(oldGray, frameGray, oldPoints, newPoints, status, err, winSize, maxLevel, criteria);
+
+    // Check if points are found
+    let goodPoints = [];
+    for (let i = 0; i < status.rows; i++) {
+        if (status.data[i] === 1) {
+            goodPoints.push({
+                x: newPoints.data32F[i * 2],
+                y: newPoints.data32F[i * 2 + 1]
+            });
+        }
+    }
+
+    if (goodPoints.length === 4) {
+        frameCorners = goodPoints;
+        // Update history
+        oldGray.delete();
+        oldPoints.delete();
+        oldGray = frameGray.clone();
+        oldPoints = newPoints.clone();
+    } else {
+        // Tracking lost, fallback to manual or pause
+        instructionText.innerText = "Tracking lost! Switching to manual.";
+        mode = 'manual';
+        btnModeManual.classList.add('active');
+        btnModeAI.classList.remove('active');
+    }
+
+    src.delete();
+    frameGray.delete();
+    newPoints.delete();
+    status.delete();
+    err.delete();
 }
